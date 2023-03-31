@@ -1,0 +1,50 @@
+
+
+---
+
+title: "Test"
+subtitle: "Test"
+author: ""
+institute: ""
+date: "(build: `r Sys.Date()`)"
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ["xaringan-themer.css"]
+    seal: false
+    nature:
+      highlightStyle: solarized-light
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: "%current%"
+
+
+---
+
+
+# This is the first page.
+- It is automatically implemented, because the parent folder was passed in as an argument.
+
+---
+
+
+# This is the second page
+- it is implemented too.
+- every `.ipynb` file in a folder will be implemented alphabetically.
+- other files will be ignored.
+- before any other tags are used `new-page` has to be set first in every notebook. Calling `add-to-page` from a new notebook would raise an error. It is not possible to add / insert to a page of a different notebook.
+
+---
+
+# Some limitations
+- It is not possible to change the ordering or exclude a file.
+
+---
+
+
+# This is a sub book
+
+- It gets automatically implemented, if any root folder was passed as import argument.
+- First all parent `.ipynb` files are implemented then the files in the folder.

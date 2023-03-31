@@ -1,0 +1,166 @@
+
+
+---
+
+title: "Test"
+subtitle: "Test"
+author: ""
+institute: ""
+date: "(build: `r Sys.Date()`)"
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ["xaringan-themer.css"]
+    seal: false
+    nature:
+      highlightStyle: solarized-light
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: "%current%"
+
+
+---
+
+
+# Test wrapping Images
+
+---
+
+## Switch image place.
+<img src="../../tests/notebooks/./../images/image2.png">
+
+![Image1](../../tests/notebooks/./../images/image1.png)
+
+---
+
+## Image side by side
+<table><img src="../../tests/notebooks/./../images/image1.png"> </td><img src="../../tests/notebooks/./../images/image2.png"> </td></table>
+
+---
+
+## One image per page
+
+---
+
+### Image 2  
+
+![](../../tests/notebooks/./../images/image2.png)
+
+---
+
+### Image 1  
+
+![](../../tests/notebooks/./../images/image1.png)
+
+---
+
+
+# Display Python code
+
+---
+
+## Code with output.
+```Python
+def print_hello():
+    print("hello")
+
+print_hello()
+```
+```
+hello
+```
+
+---
+
+## Code ignore output.
+```Python
+def print_hello():
+    print("hello")
+
+print_hello()
+```
+
+---
+
+## Show only output.
+```
+hello
+```
+
+---
+
+## Code with error
+```Python
+def add_one(number):
+    return number + 1
+
+print(f"1 + 1 = {add_one(1)}")
+print(f"1 + 'error' = {add_one('error')}")
+```
+```
+1 + 1 = 2
+```
+```
+TypeError: can only concatenate str (not "int") to str
+```
+
+---
+
+## Code ignore error
+```Python
+def add_one(number):
+    return number + 1
+
+print(f"1 + 1 = {add_one(1)}")
+print(f"1 + 'error' = {add_one('error')}")
+```
+```
+1 + 1 = 2
+```
+
+---
+
+## Only error
+```
+TypeError: can only concatenate str (not "int") to str
+```
+
+---
+
+## Implement of unsaved images is not possible
+```Python
+import matplotlib.pyplot as plt
+
+plt.plot([1,2], [3,4])
+plt.show()
+```
+
+---
+
+
+# This is the first page.
+- It is automatically implemented, because the parent folder was passed in as an argument.
+
+---
+
+
+# This is the second page
+- it is implemented too.
+- every `.ipynb` file in a folder will be implemented alphabetically.
+- other files will be ignored.
+- before any other tags are used `new-page` has to be set first in every notebook. Calling `add-to-page` from a new notebook would raise an error. It is not possible to add / insert to a page of a different notebook.
+
+---
+
+# Some limitations
+- It is not possible to change the ordering or exclude a file.
+
+---
+
+
+# This is a sub book
+
+- It gets automatically implemented, if any root folder was passed as import argument.
+- First all parent `.ipynb` files are implemented then the files in the folder.

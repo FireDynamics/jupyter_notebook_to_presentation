@@ -1,0 +1,105 @@
+
+
+---
+
+title: "Test"
+subtitle: "Test"
+author: ""
+institute: ""
+date: "(build: `r Sys.Date()`)"
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ["xaringan-themer.css"]
+    seal: false
+    nature:
+      highlightStyle: solarized-light
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: "%current%"
+
+
+---
+
+
+# Display Python code
+
+---
+
+## Code with output.
+```Python
+def print_hello():
+    print("hello")
+
+print_hello()
+```
+```
+hello
+```
+
+---
+
+## Code ignore output.
+```Python
+def print_hello():
+    print("hello")
+
+print_hello()
+```
+
+---
+
+## Show only output.
+```
+hello
+```
+
+---
+
+## Code with error
+```Python
+def add_one(number):
+    return number + 1
+
+print(f"1 + 1 = {add_one(1)}")
+print(f"1 + 'error' = {add_one('error')}")
+```
+```
+1 + 1 = 2
+```
+```
+TypeError: can only concatenate str (not "int") to str
+```
+
+---
+
+## Code ignore error
+```Python
+def add_one(number):
+    return number + 1
+
+print(f"1 + 1 = {add_one(1)}")
+print(f"1 + 'error' = {add_one('error')}")
+```
+```
+1 + 1 = 2
+```
+
+---
+
+## Only error
+```
+TypeError: can only concatenate str (not "int") to str
+```
+
+---
+
+## Implement of unsaved images is not possible
+```Python
+import matplotlib.pyplot as plt
+
+plt.plot([1,2], [3,4])
+plt.show()
+```

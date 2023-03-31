@@ -1,0 +1,55 @@
+
+
+---
+
+title: "Test"
+subtitle: "Test"
+author: ""
+institute: ""
+date: "(build: `r Sys.Date()`)"
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: ["xaringan-themer.css"]
+    seal: false
+    nature:
+      highlightStyle: solarized-light
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      slideNumberFormat: "%current%"
+
+
+---
+
+
+# Test wrapping Images
+
+---
+
+## Switch image place.
+<img src="../../tests/notebooks/./../images/image2.png">
+
+![Image1](../../tests/notebooks/./../images/image1.png)
+
+---
+
+## Image side by side
+<table><img src="../../tests/notebooks/./../images/image1.png"> </td><img src="../../tests/notebooks/./../images/image2.png"> </td></table>
+
+---
+
+## One image per page
+
+---
+
+### Image 2  
+
+![](../../tests/notebooks/./../images/image2.png)
+
+---
+
+### Image 1  
+
+![](../../tests/notebooks/./../images/image1.png)

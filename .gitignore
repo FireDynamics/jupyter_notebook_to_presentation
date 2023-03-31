@@ -1,0 +1,6 @@
+/target
+/LectureComputerScience
+Cargo.lock
+.Rhistory
+.directory
+/tests/presentations/libs
