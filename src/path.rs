@@ -167,12 +167,12 @@ pub fn replace_paths(
         if path.starts_with('/') || path.starts_with("http://") || path.starts_with("https://") {
             continue;
         }
-        if let Some(path) =
+        if let Some(new_path) =
             generate_new_path(output_path, notebook_path, Path::new(&path))?.to_str()
         {
-            let left = &markdown[0..range.start()];
-            let right = &markdown[range.end()..markdown.len()];
-            markdown = format!("{left}{path}{right}");
+            let left = &markdown.chars().take(range.start()).collect::<String>();
+            let right = &markdown.chars().skip(range.end()).collect::<String>();
+            markdown = format!("{left}{new_path}{right}");
         }
     }
 
