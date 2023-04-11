@@ -57,6 +57,23 @@ struct Cell {
     source: Vec<String>,
 }
 impl Cell {
+    /// TODO
+    fn get_source_without_commands_comment(&self) -> Result<String> {
+        match self.cell_type.as_str() {
+            "markdown" => todo!(),
+            "code" => todo!(),
+            _ => Err(anyhow::Error::msg(format!(
+                "Cell type '{}' is currently not supported.",
+                self.cell_type
+            ))),
+        }
+    }
+
+    /// TODO
+    fn prosses_to_presentation() -> Result<()> {
+        todo!()
+    }
+
     /// Returns the source, so the user defined input of this [`Cell`].
     ///
     /// # Errors

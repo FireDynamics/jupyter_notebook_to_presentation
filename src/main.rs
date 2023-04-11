@@ -8,6 +8,7 @@
 #![warn(clippy::doc_markdown)]
 
 mod arguments;
+mod commands;
 mod create_presentation;
 mod get_files;
 mod notebook;
