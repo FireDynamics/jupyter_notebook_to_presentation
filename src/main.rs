@@ -51,7 +51,9 @@ fn run() -> Result<()> {
         .with_level(LevelFilter::Off)
         .with_module_level(
             "presentation",
-            if matches!(args.verbose, true) {
+            if args.debug {
+                LevelFilter::Debug
+            } else if args.verbose {
                 LevelFilter::Info
             } else {
                 LevelFilter::Warn

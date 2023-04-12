@@ -22,6 +22,10 @@ pub struct Arguments {
     #[arg(short = "v", long)]
     pub verbose: bool,
 
+    ///Enable debug output.
+    #[arg(short = "d", long)]
+    pub debug: bool,
+
     ///The source paths of the notebooks or folders.
     pub input: Vec<String>,
 }
