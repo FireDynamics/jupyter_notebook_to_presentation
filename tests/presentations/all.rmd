@@ -47,29 +47,6 @@ output:
 ![](../../tests/notebooks/./../images/image1.png)
 ---
 
-class: topic
-
-# This book should demonstrate the page class
-- there fore this page is the class `topic`
-
----
-
-class: rotate
-
-## This Page has a different class
-- the class in questioning is `rotate`
-
----
-
-class: rotate
-
-# The tags will override each other
-- first will set the page to `topic`
-- but change it to `rotate`
-- the `class[...]` tag changes the latest page topic
-
----
-
 # This is the first page.
 - It is automatically implemented, because the parent folder was passed in as an argument.
 
@@ -92,3 +69,26 @@ class: rotate
 
 - It gets automatically implemented, if any root folder was passed as import argument.
 - First all parent `.ipynb` files are implemented then the files in the folder.
+
+---
+
+class: topic
+
+# This book should demonstrate the page class
+- there fore this page is the class `topic`
+
+---
+
+class: rotate
+
+## This Page has a different class
+- the class in questioning is `rotate`
+
+---
+
+class: rotate
+
+# The tags will override each other
+- first will set the page to `topic`
+- but change it to `rotate`
+- the `class[...]` tag changes the latest page topic

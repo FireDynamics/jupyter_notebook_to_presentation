@@ -1,6 +1,6 @@
 //! Retrieve all possible paths as a [`Vec<PathBuf>`] from the given arguments. If a directory path is passed,
 //! this function will recursively search for all `.ipynb` notebooks within the directory.
-use anyhow::Result;
+use log::info;
 use std::{ffi::OsStr, fs, path::PathBuf};
 
 /// Converts a slice of [`String`] paths into a [`Vec<PathBuf>`] and includes
@@ -16,9 +16,25 @@ use std::{ffi::OsStr, fs, path::PathBuf};
 /// - The provided path doesn't exist.
 /// - The process lacks permissions to view the contents.
 /// - The path points at a non-directory file.
-pub fn get_paths_from_strings(paths: &[String]) -> Result<Vec<PathBuf>> {
-    let mut paths = paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+pub fn get_paths_from_strings(paths: &[String]) -> Result<Vec<PathBuf>, std::io::Error> {
+    let paths = paths
+        .iter()
+        .map(|path| get_path_from_string(path))
+        .collect::<Result<Vec<Vec<PathBuf>>, std::io::Error>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    info!("The following paths are evaluated: {paths:?}");
+
+    Ok(paths)
+}
+
+/// Helper function for `get_paths_from_strings`
+fn get_path_from_string(path: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    let mut paths = vec![PathBuf::from(path)];
     let mut i = 0;
+
     while i < paths.len() {
         let path = &paths[i];
 
