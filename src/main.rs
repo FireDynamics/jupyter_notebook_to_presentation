@@ -16,7 +16,7 @@ mod path;
 
 use anyhow::Result;
 use arguments::get_arguments;
-use log::{error, LevelFilter};
+use log::{error, info, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{path::PathBuf, str::FromStr};
 
@@ -24,7 +24,7 @@ fn main() {
     let run = run();
     match run {
         Ok(_) => {
-            println!("The presentation was successfully created.")
+            info!("Program has run.")
         }
         Err(err) => {
             error!("{}", err)

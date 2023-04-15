@@ -22,7 +22,7 @@ pub struct Arguments {
     #[arg(short = "v", long)]
     pub verbose: bool,
 
-    ///Enable debug output.
+    ///Enables debug output, which only has an effect in debug builds.
     #[arg(short = "d", long)]
     pub debug: bool,
 
