@@ -1,5 +1,4 @@
 
-
 ---
 
 title: "Test"
@@ -20,7 +19,6 @@ output:
       ratio: "16:9"
       slideNumberFormat: "%current%"
 
-
 ---
 
 class: topic
@@ -29,6 +27,7 @@ class: topic
 - there fore this page is the class `topic`
 
 ---
+
 class: rotate
 
 ## This Page has a different class
@@ -36,5 +35,9 @@ class: rotate
 
 ---
 
+class: rotate
+
 # The tags will override each other
-- first wie set the page to `topic`
+- first will set the page to `topic`
+- but change it to `rotate`
+- the `class[...]` tag changes the latest page topic
