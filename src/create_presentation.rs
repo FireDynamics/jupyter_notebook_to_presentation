@@ -46,7 +46,7 @@ pub fn write_presentation(output_path: PathBuf, pages: Vec<String>) -> Result<()
 
     for page in pages {
         if !page.is_empty() {
-            file.write_all(b"\n\n---\n\n")?;
+            file.write_all(b"\n---\n\n")?;
             file.write_all(page.as_bytes())?
         }
     }

@@ -222,7 +222,7 @@ mod test {
 
     #[test]
     fn test_duble_qoute_string() {
-        let text = r#""./images/image.png""#;
+        let text = r#""./bilder/digital_state_clock.svg""#;
         let parser = duble_quote_string();
         let r = parser.parse(text);
         assert_eq!(
@@ -236,7 +236,7 @@ mod test {
         let text = "<img src=\"./images/image.png\" width=\"60%\">\n";
         let parser = find_paths_in_html();
         let r = parser.parse(text);
-        assert_eq!(Ok(("./images/image.png".to_string(), 10..42)), r);
+        assert_eq!(Ok(("./images/image.png".to_string(), 10..28)), r);
     }
 
     #[test]
@@ -244,7 +244,7 @@ mod test {
         let text = "![Some Deskription](./images/image.png)";
         let parser = find_path_in_markdown_image();
         let r = parser.parse(text);
-        assert_eq!(Ok(("./images/image.png".to_string(), 20..52)), r);
+        assert_eq!(Ok(("./images/image.png".to_string(), 20..38)), r);
     }
 
     #[test]

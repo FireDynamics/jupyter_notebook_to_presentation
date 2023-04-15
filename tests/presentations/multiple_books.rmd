@@ -1,5 +1,4 @@
 
-
 ---
 
 title: "Test"
@@ -20,15 +19,12 @@ output:
       ratio: "16:9"
       slideNumberFormat: "%current%"
 
-
 ---
-
 
 # This is the first page.
 - It is automatically implemented, because the parent folder was passed in as an argument.
 
 ---
-
 
 # This is the second page
 - it is implemented too.
@@ -42,7 +38,6 @@ output:
 - It is not possible to change the ordering or exclude a file.
 
 ---
-
 
 # This is a sub book
 

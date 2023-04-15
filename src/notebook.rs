@@ -1,16 +1,30 @@
 //! Load and read a `.ipynb` notebook with `serde` and apply the assigned tags.
 use anyhow::Result;
-use chumsky::prelude::*;
-use log::{error, info, warn};
+use log::{error, debug};
 use serde::{Deserialize, Serialize};
 use std::{
-    error::Error,
-    fmt::Display,
     fs,
     path::{Path, PathBuf},
 };
 
-use crate::path::{replace_paths, wrap_image};
+use crate::{
+    commands::{self, Command},
+    path::{replace_paths, wrap_image},
+};
+
+/// Possible states of a command sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CommandSequenceState {
+    /// Represents the state when the current line starts or is within a
+    /// command sequence.
+    Within,
+    /// Represents the state when the current line ends a command sequence.
+    End,
+    /// Represents a state that is neither within a command sequence nor ends
+    /// one.
+    Outside,
+}
+
 
 /// This struct represents the metadata of a notebook cell. The `tags` property
 /// is used to execute the commands defined by the tags.
@@ -49,6 +63,7 @@ enum Output {
 struct Cell {
     /// Type of the cell (e.g. Markdown or code)
     cell_type: String,
+    // TODO Remove Metadata since it has no use anymore
     /// The metadata bounded to the cell. Relevant are only the tags.
     metadata: Metadata,
     /// Possible outputs of a cell, e.g. an error of a code cell.
@@ -57,19 +72,32 @@ struct Cell {
     source: Vec<String>,
 }
 impl Cell {
-    /// Returns the source, so the user defined input of this [`Cell`].
+    /// Returns the get source without commands comment of this [`Cell`].
     ///
     /// # Errors
     ///
-    /// This function will return an error if the `cell_type` type is not
-    /// supported.
-    fn get_source(&self) -> Result<String> {
+    /// This function will return an error if the cell type is not `markdown` or `code`.
+    fn get_source_without_commands_comment(&self) -> Result<String> {
         match self.cell_type.as_str() {
-            "markdown" => Ok(self.source.join("")),
-            "code" => Ok(format!(
-                "```Python\n{}\n```",
-                self.source.join("").trim_end()
-            )),
+            "markdown" => {
+                let mut is_command = false;
+                let text = self
+                    .source
+                    .iter()
+                    .filter(|f| {
+                        let trimmed = f.trim();
+                        if trimmed.starts_with("<!--!") {
+                            is_command = true;
+                        }
+                        if trimmed.ends_with("-->") {
+                            is_command = false;
+                        }
+                        !is_command
+                    })
+                    .cloned()
+                    .collect::<String>();
+                Ok(text)
+            }
             _ => Err(anyhow::Error::msg(format!(
                 "Cell type '{}' is currently not supported.",
                 self.cell_type
@@ -77,74 +105,163 @@ impl Cell {
         }
     }
 
-    /// Returns the stream of this [`Cell`].
+    /// Processes the current [`Cell`] and executes all contained commands. The
+    /// contents of the cell are read line by line, and any command comments
+    /// encountered are collected until the comment ends. All collected
+    /// commands are then executed in the order they were encountered, except
+    /// for [`Command::PageClass`].
     ///
     /// # Errors
     ///
-    /// This function will return an error if the [`Cell`] has no stream output.
-    fn get_stream(&self) -> Result<String> {
-        if let Some(outputs) = &self.outputs {
-            for output in outputs {
-                if let Output::Stream { text } = output {
-                    return Ok(format!("```\n{}\n```", text.join("").trim_end()));
-                }
+    /// This function may return an error if:
+    /// - The cell type is not `markdown` or `code`.
+    /// - The command comment cannot be parsed.
+    /// - The [`Command::StartAddToPage`], [`Command::AddStreamToPage`],
+    /// [`Command::AddErrorToPage`], [`Command::InjectToPage`],
+    /// [`Command::WrapImage`], and [`Command::PageClass`] commands are used
+    /// before a page is initialized.
+    /// - The `markdown` command comment is not properly closed.
+    fn proses_to_presentation(
+        &self,
+        pages: &mut Vec<String>,
+        page_class: &mut Option<String>,
+    ) -> Result<()> {
+        match self.cell_type.as_str() {
+            "markdown" => (),
+            cell_type => {
+                debug!("Cell type: '{cell_type}' is currently not supported.");
+                return Ok(());
             }
-        } else {
-            return Err(anyhow::Error::msg("No output in cell.".to_string()));
         }
-        Err(anyhow::Error::msg("No stream in Cell".to_string()))
-    }
 
-    /// Returns the error of this [`Cell`].
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if the [`Cell`] has no error output.
-    fn get_error(&self) -> Result<String> {
-        if let Some(outputs) = &self.outputs {
-            for output in outputs {
-                if let Output::Error { ename, evalue } = output {
-                    return Ok(format!("```\n{}: {}\n```", ename, evalue));
-                }
+        let mut command_line = 0;
+        let mut command_sequence_state = CommandSequenceState::Outside;
+        let mut command_sequence = vec![];
+        let mut add_to_page = false;
+
+        let mut lines = self.source.iter().enumerate().peekable();
+        while let Some((i, line)) = lines.next() {
+            if command_sequence_state == CommandSequenceState::Outside {
+                command_line = i;
             }
-        } else {
-            return Err(anyhow::Error::msg("No output in cell.".to_string()));
+
+            let trimmed = line.trim();
+            match (trimmed.starts_with("<!--!"), trimmed.ends_with("-->")) {
+                (true, true) => {
+                    command_sequence_state = CommandSequenceState::End;
+                    command_sequence.push(&trimmed[5..(trimmed.len() - 3)]);
+                }
+                (true, false) => {
+                    command_sequence_state = CommandSequenceState::Within;
+                    command_sequence.push(&trimmed[5..trimmed.len()]);
+                }
+                (false, true) => {
+                    if command_sequence_state == CommandSequenceState::Within {
+                        command_sequence_state = CommandSequenceState::End;
+                        command_sequence.push(&trimmed[0..(trimmed.len() - 3)]);
+                    }
+                }
+                (false, false) => {
+                    if command_sequence_state == CommandSequenceState::Within {
+                        command_sequence.push(trimmed);
+                    }
+                }
+            };
+
+            || -> Result<()> {
+                if command_sequence_state == CommandSequenceState::Outside || lines.peek().is_none() {
+                    let stream = command_sequence.join("");
+                    let stream = stream.trim();
+                    if !stream.is_empty() {
+
+                        let commands = commands::parse(stream)
+                        .map_err(|err| {
+                            anyhow::Error::msg(format!("Unable to parse commands. '{}' {} ", command_sequence.join("").trim(), err))
+                        })?;
+                        
+                        debug!("{commands:?}");
+                        
+                        for command in commands {
+                            match command {
+                                Command::NewPage => {
+                                    if let Some(class) = page_class {
+                                        if let Some(last) = pages.last_mut() {
+                                            *last = format!("class: {class}\n\n{last}");
+                                            *page_class = None;
+                                        } else {
+                                            return Err(anyhow::Error::msg(
+                                                "Tried to set a class page that was not initialized. ",
+                                            ));
+                                        }
+                                    }
+                                    pages.push(String::new());
+                                },
+                            Command::StartAddToPage => {
+                                add_to_page = true;
+                                },
+                            Command::StopAddToPage => {
+                                add_to_page = false;
+                            },
+                            Command::InjectToPage(content) => {
+                                if let Some(last) = pages.last_mut() {
+                                    *last = format!("{last}{}", content);
+                                } else {
+                                    return Err(anyhow::Error::msg(
+                                        format!("Tried to insert '{content}' to a page that was not initialized. "),
+                                    ));
+                                }
+                            }
+                            Command::WrapImage(content) => {
+                                if let Some(last) = pages.last_mut() {
+                                    let wrap = wrap_image(
+                                        &self.get_source_without_commands_comment()?,
+                                        &content,
+                                    )?;
+                                    *last = format!("{last}{}", wrap);
+                                } else {
+                                    return Err(anyhow::Error::msg(
+                                        "Tried to insert a 'WrapImage' to a page that was not initialized. ".to_string(),
+                                    ));
+                                }
+                            }
+                            Command::PageClass(class) => *page_class = Some(class),
+                        }
+                    }
+                    }
+                    command_sequence.clear()
+                }
+                    if add_to_page && command_sequence_state == CommandSequenceState::Outside{
+                        if let Some(last) = pages.last_mut() {
+                            if line.ends_with('\n'){
+                                *last = format!("{last}{}", line.clone());
+                            }else{
+                                *last = format!("{last}{}\n", line.clone());
+                            }
+                        } else {
+                            return Err(anyhow::Error::msg(
+                                "Tried to insert to a page that was not initialized. "
+                                .to_string(),
+                            ));
+                        }
+                    }
+
+                Ok(())
+            }().map_err(|op| {
+                let text = format!("Line {command_line} to {i}. {}",op);
+                op.context(text)
+            })?;
+            
+            if command_sequence_state == CommandSequenceState::End {
+                command_sequence_state = CommandSequenceState::Outside;
+            }
         }
-        Err(anyhow::Error::msg("No error in Cell".to_string()))
-    }
-}
 
-/// This function removes extraneous and sensitive data from an error message
-/// displayed in a notebook. Note that this function is deprecated, as the
-/// formatting of the `traceback` property can vary depending on how the
-/// notebook was compiled. As a result, only the error message from the
-/// `evalue` property is now displayed, which requires no further processing.
-///
-/// # Errors
-/// An error will be returned if the internal parse function has been
-/// improperly configured. However, no errors should occur if it is properly
-/// configured.
-#[deprecated(note = "please use `new_method` instead")]
-pub fn _remove_theming_from_err(text: &str) -> Result<String> {
-    let color = just::<_, _, Simple<char>>("\u{001b}[")
-        .then(take_until(just('m')))
-        .ignored();
-    let html = take_until(just("</a>").rewind())
-        .ignored()
-        .delimited_by(just("<a"), just("</a>"));
-
-    let parser = take_until(color.or(html))
-        .map(|(s, _)| s)
-        .collect::<String>()
-        .repeated()
-        .map(|f| f)
-        .chain::<String, String, _>(take_until(end()).map(|(s, _)| s).collect::<String>())
-        .collect::<String>();
-
-    // HACK clippy throws an error when using parser.parse(...)
-    match Parser::parse(&parser, text) {
-        Ok(ok) => Ok(ok),
-        Err(err) => Err(anyhow::Error::msg(format!("{err:?}"))),
+        if command_sequence_state == CommandSequenceState::Within {
+            return Err(anyhow::Error::msg(
+                "Missing comment closing element. ".to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -168,120 +285,24 @@ impl Notebook {
     /// path has no parent. Note this case should never happen.
     pub fn into_pages(self, output_path: &Path) -> Result<String> {
         let mut pages = vec![];
-
         let mut page_class = None;
 
-        for (n, cell) in self.cells.into_iter().enumerate() {
-            if let Some(tags) = &cell.metadata.tags {
-                for tag in tags {
-                    match Tag::try_from(tag.as_str()) {
-                        Ok(ok) => match ok {
-                            Tag::NewPage => {
-                                if let Some(class) = page_class {
-                                    if let Some(last) = pages.last_mut() {
-                                        *last = format!("class: {}\n{}", class, last);
-                                    } else {
-                                        warn!("Tried to set a class page that was not initialized. <Cell: {} in File: {:?}>", n, self.path);
-                                    }
-                                }
-
-                                page_class = None;
-                                pages.push(String::default());
-                            }
-                            Tag::AddToPage => {
-                                if let Some(last) = pages.last_mut() {
-                                    match cell.get_source() {
-                                        Ok(text) => {
-                                            *last = format!("{}\n{}", last, text);
-                                        }
-                                        Err(err) => {
-                                            error!(
-                                                "{}. <Cell: {} in File: {:?}>",
-                                                err, n, self.path
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    warn!("Tried to add to a page that was not initialized. <Cell: {} in File: {:?}>", n, self.path);
-                                }
-                            }
-                            Tag::AddStreamToPage => {
-                                if let Some(last) = pages.last_mut() {
-                                    match cell.get_stream() {
-                                        Ok(text) => {
-                                            *last = format!("{}\n{}", last, text);
-                                        }
-                                        Err(err) => {
-                                            error!(
-                                                "{}. <Cell: {} in File: {:?}>",
-                                                err, n, self.path
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    warn!("Tried to add stream to a page that was not initialized. <Cell: {} in File: {:?}>", n, self.path);
-                                }
-                            }
-                            Tag::AddErrorToPage => {
-                                if let Some(last) = pages.last_mut() {
-                                    match cell.get_error() {
-                                        Ok(text) => {
-                                            *last = format!("{}\n{}", last, text);
-                                        }
-                                        Err(err) => {
-                                            error!(
-                                                "{}. <Cell: {} in File: {:?}>",
-                                                err, n, self.path
-                                            );
-                                        }
-                                    }
-                                } else {
-                                    warn!("Tried to add error to a page that was not initialized. <Cell: {} in File: {:?}>", n, self.path);
-                                }
-                            }
-                            Tag::InjectToPage(text) => {
-                                if let Some(last) = pages.last_mut() {
-                                    *last = format!("{}\n{}", last, text);
-                                } else {
-                                    warn!("Tried to insert '{}' to a page that was not initialized. <Cell: {} in File: {:?}>", text, n, self.path);
-                                }
-                            }
-                            Tag::WrapImage(wrap) => {
-                                let markdown = cell.get_source()?;
-                                if let Some(last) = pages.last_mut() {
-                                    match wrap_image(&markdown, &wrap) {
-                                        Ok(ok) => {
-                                            *last = format!("{}\n{}", last, ok);
-                                        }
-                                        Err(err) => {
-                                            error!(
-                                                "{}. <Cell: {} in File: {:?}>",
-                                                err, n, self.path
-                                            );
-                                        }
-                                    }
-                                } else {
-                                    warn!("Tried to insert 'wrap-image' to a page that was not initialized. <Cell: {} in File: {:?}>", n, self.path);
-                                }
-                            }
-                            Tag::PageClass(class) => page_class = Some(class),
-                        },
-                        Err(err) => match err {
-                            TagError::UnknownTag(err) => {
-                                info!("{} <Cell: {} in File: {:?}>", err, n, self.path);
-                            }
-                            err => {
-                                error!(
-                                    "Unable to read tag '{}'. {} <Cell: {} in File: {:?}>",
-                                    tag, err, n, self.path
-                                );
-                            }
-                        },
-                    }
-                }
+        debug!("Convert notebook {:?} into pages", self.path);
+        for (i, cell) in self.cells.iter().enumerate() {
+            debug!("Convert cell {} into pages", i);
+            if let Err(err) = cell.proses_to_presentation(&mut pages, &mut page_class) {
+                error!("Cell: {} in File: {:?}. {}", i, self.path, err)
             }
         }
-        let pages = pages.join("\n\n---\n");
+        if let Some(class) = page_class{
+            if let Some(last) = pages.last_mut(){
+                *last = format!("class: {class}\n\n{last}");
+            }else{
+                error!("Cell: {} in File: {:?}. Tried to set a class page that was not initialized. ", self.cells.len(), self.path,)
+            }
+        }
+
+        let pages = pages.join("\n---\n\n");
         let Some(pages) = replace_paths(output_path, &self.path, pages) else{
             return Err(anyhow::Error::msg(format!("Either the output path {:?} or the notebook path {:?} has no parent.", output_path,self.path)))
         };
@@ -302,80 +323,64 @@ impl Notebook {
     }
 }
 
-/// All for this program relevant tags that a notebook cell can have.
-#[derive(Debug, Clone)]
-pub enum Tag {
-    /// Create a new page.
-    NewPage,
-    /// Add only the content to the latest page.
-    AddToPage,
-    /// Add only the stream to the latest page. (e.g. the output of a `print()`
-    /// function)
-    AddStreamToPage,
-    /// Add only the error to the latest page. (Only the error not the position)
-    AddErrorToPage,
-    /// Add the content of the injection to the latest page.
-    InjectToPage(String),
-    /// Wrapp the images of a markdown cell in the given string. A more
-    /// detailed description can be found in the `readme.md`.
-    WrapImage(String),
-    /// Set the class of the latest page.
-    PageClass(String),
-}
+#[cfg(test)]
+mod test {
+    use crate::commands::Command;
 
-impl TryFrom<&str> for Tag {
-    type Error = TagError;
+    use super::Cell;
 
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
-        if value == "new-page" {
-            Ok(Tag::NewPage)
-        } else if value == "add-to-page" {
-            Ok(Tag::AddToPage)
-        } else if value == "add-stream-to-page" {
-            Ok(Tag::AddStreamToPage)
-        } else if value == "add-error-to-page" {
-            Ok(Tag::AddErrorToPage)
-        } else if value.starts_with("inject-to-page") {
-            if value.starts_with("inject-to-page[") && value.ends_with(']') {
-                let content = value[15..(value.len() - 1)].to_string();
-                Ok(Tag::InjectToPage(content))
-            } else {
-                Err(TagError::NoClosedBrackets)
-            }
-        } else if value.starts_with("wrap-image") {
-            if value.starts_with("wrap-image[") && value.ends_with(']') {
-                let content = value[11..(value.len() - 1)].to_string();
-                Ok(Tag::WrapImage(content))
-            } else {
-                Err(TagError::NoClosedBrackets)
-            }
-        } else if value.starts_with("class") {
-            if value.starts_with("class[") && value.ends_with(']') {
-                let content = value[6..(value.len() - 1)].to_string();
-                Ok(Tag::PageClass(content))
-            } else {
-                Err(TagError::NoClosedBrackets)
-            }
-        } else {
-            Err(TagError::UnknownTag(value.to_string()))
-        }
+    #[test]
+    fn test_cell_to_page() {
+        let mut pages = vec![];
+        let mut page_class = None;
+        let cell = Cell {
+            cell_type: "markdown".to_string(),
+            outputs: None,
+            source: vec![
+                format!("<!--! {}; {}; -->\n", Command::NEW_PAGE, Command::START_ADD_TO_PAGE),
+                "# Headline\n".to_string(),
+            ],
+            metadata: super::Metadata { tags: None },
+        };
+        cell.proses_to_presentation(&mut pages, &mut page_class).unwrap();
+        assert_eq!(pages, vec!["# Headline\n".to_string()]);
+
+        let mut pages = vec![];
+        let mut page_class = None;
+        let cell = Cell {
+            cell_type: "markdown".to_string(),
+            outputs: None,
+            source: vec![
+                "<!--!".to_string(),
+                format!("{}\n;", Command::NEW_PAGE),
+                format!("{}\n;", Command::START_ADD_TO_PAGE),
+                "-->\n".to_string(),
+                "# Headline\n".to_string(),
+                "Text\n".to_string(),
+                "More Text\n".to_string(),
+            ],
+            metadata: super::Metadata { tags: None },
+        };
+        cell.proses_to_presentation(&mut pages, &mut page_class).unwrap();
+        assert_eq!(pages, vec!["# Headline\nText\nMore Text\n".to_string()]);
+        
+        let mut pages = vec![];
+        let mut page_class = None;
+        let cell = Cell {
+            cell_type: "markdown".to_string(),
+            outputs: None,
+            source: vec![
+                format!("<!--!{};\n", Command::NEW_PAGE),
+                format!("{};\n", Command::NEW_PAGE),
+                format!("{};\n", Command::NEW_PAGE),
+                format!("{};\n", Command::NEW_PAGE),
+                "-->\n".to_string(),
+                "# Headline\n".to_string(),
+                "Text".to_string(),
+                ],
+                metadata: super::Metadata { tags: None },
+            };
+        cell.proses_to_presentation(&mut pages, &mut page_class).unwrap();
+        assert_eq!(pages, vec!["".to_string(),"".to_string(),"".to_string(),"".to_string()]);
     }
 }
-
-/// The errors that can occur while parsing a tag.
-#[derive(Debug)]
-pub enum TagError {
-    /// The tag is not known to the program.
-    UnknownTag(String),
-    /// Tags with definitions have no closing brackets `[]`.
-    NoClosedBrackets,
-}
-impl Display for TagError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TagError::UnknownTag(tag) => write!(f, "Unknown Tag '{}'.", tag),
-            TagError::NoClosedBrackets => write!(f, "Brackets are not closed."),
-        }
-    }
-}
-impl Error for TagError {}

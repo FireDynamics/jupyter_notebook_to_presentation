@@ -8,6 +8,7 @@
 #![warn(clippy::doc_markdown)]
 
 mod arguments;
+mod commands;
 mod create_presentation;
 mod get_files;
 mod notebook;
@@ -15,7 +16,7 @@ mod path;
 
 use anyhow::Result;
 use arguments::get_arguments;
-use log::{error, LevelFilter};
+use log::{error, info, LevelFilter};
 use simple_logger::SimpleLogger;
 use std::{path::PathBuf, str::FromStr};
 
@@ -23,7 +24,7 @@ fn main() {
     let run = run();
     match run {
         Ok(_) => {
-            println!("The presentation was successfully created.")
+            info!("Program has run.")
         }
         Err(err) => {
             error!("{}", err)
@@ -50,7 +51,9 @@ fn run() -> Result<()> {
         .with_level(LevelFilter::Off)
         .with_module_level(
             "presentation",
-            if matches!(args.verbose, true) {
+            if args.debug {
+                LevelFilter::Debug
+            } else if args.verbose {
                 LevelFilter::Info
             } else {
                 LevelFilter::Warn

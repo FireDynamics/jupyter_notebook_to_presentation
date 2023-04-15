@@ -10,128 +10,59 @@
     <textarea id="source">
 
 
-
 # Test wrapping Images
 
 ---
 
 ## Switch image place.
-&lt;img src="../../tests/notebooks/./../images/image2.png"&gt;
 
-![Image1](../../tests/notebooks/./../images/image1.png)
-
+&lt;img src="../../tests/notebooks/./../images/image2.png"&gt; ![Image1](../../tests/notebooks/./../images/image1.png)
 ---
 
 ## Image side by side
-&lt;table&gt;&lt;img src="../../tests/notebooks/./../images/image1.png"&gt; &lt;/td&gt;&lt;img src="../../tests/notebooks/./../images/image2.png"&gt; &lt;/td&gt;&lt;/table&gt;
 
+&lt;table&gt;&lt;img src="../../tests/notebooks/./../images/image1.png"&gt; &lt;/td&gt;&lt;img src="../../tests/notebooks/./../images/image2.png"&gt; &lt;/td&gt;&lt;/table&gt;
 ---
 
 ## One image per page
 
 ---
 
-### Image 2  
-
+### Image 2
 ![](../../tests/notebooks/./../images/image2.png)
-
 ---
 
-### Image 1  
-
+### Image 1
 ![](../../tests/notebooks/./../images/image1.png)
+---
+
+class: topic
+
+# This book should demonstrate the page class
+- there fore this page is the class `topic`
 
 ---
 
+class: rotate
 
-# Display Python code
-
----
-
-## Code with output.
-```Python
-def print_hello():
-    print("hello")
-
-print_hello()
-```
-```
-hello
-```
+## This Page has a different class
+- the class in questioning is `rotate`
 
 ---
 
-## Code ignore output.
-```Python
-def print_hello():
-    print("hello")
+class: rotate
 
-print_hello()
-```
-
----
-
-## Show only output.
-```
-hello
-```
+# The tags will override each other
+- first will set the page to `topic`
+- but change it to `rotate`
+- the `class[...]` tag changes the latest page topic
 
 ---
-
-## Code with error
-```Python
-def add_one(number):
-    return number + 1
-
-print(f"1 + 1 = {add_one(1)}")
-print(f"1 + 'error' = {add_one('error')}")
-```
-```
-1 + 1 = 2
-```
-```
-TypeError: can only concatenate str (not "int") to str
-```
-
----
-
-## Code ignore error
-```Python
-def add_one(number):
-    return number + 1
-
-print(f"1 + 1 = {add_one(1)}")
-print(f"1 + 'error' = {add_one('error')}")
-```
-```
-1 + 1 = 2
-```
-
----
-
-## Only error
-```
-TypeError: can only concatenate str (not "int") to str
-```
-
----
-
-## Implement of unsaved images is not possible
-```Python
-import matplotlib.pyplot as plt
-
-plt.plot([1,2], [3,4])
-plt.show()
-```
-
----
-
 
 # This is the first page.
 - It is automatically implemented, because the parent folder was passed in as an argument.
 
 ---
-
 
 # This is the second page
 - it is implemented too.
@@ -145,7 +76,6 @@ plt.show()
 - It is not possible to change the ordering or exclude a file.
 
 ---
-
 
 # This is a sub book
 

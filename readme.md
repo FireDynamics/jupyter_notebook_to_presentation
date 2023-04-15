@@ -1,6 +1,6 @@
 # **Presentation**
 
-This program is designed to reduce redundancy for scripts, documentation, etc. implemented as Jupyter Notebooks that also require a presentation with the same content. By tagging the cells inside a Notebook and running this program, a presentation is automatically generated as an R Markdown file. 
+This program is designed to reduce redundancy for scripts, documentation, etc. implemented as Jupyter Notebooks that also require a presentation with the same content. By adding commands to a Markdown cell inside a Notebook and running this program, a presentation is automatically generated as an R Markdown file. 
 
 (Currently only tested with the [xaringan](https://github.com/yihui/xaringan) styling.)
 
@@ -24,24 +24,35 @@ The build program can be found under `./target/release/presentation` relative to
 
 ## **Usage**
 ### **Notebook:**
-First, cells in a Notebook need to be tagged.
+First commands have to be added to a markdown cell by staring with `<!--!` and ending with `-->`. Every command has to end with `;`. 
 
-#### **Supported Tags:**
-| Tag                   | Use                                                                                                                                                                   |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `new-page`            | initialize a new page.                                                                                                                                                |
-| `add-to-page`         | Add the user generated input from a cell to the latest page. Code cells are automatically wrapped in a code block.                                                    |
-| `add-stream-to-page`  | Add the stream output of a code cell to the lates page.                                                                                                               |
-| `add-error-to-page`   | Add the error of a code cell to the latest page. Note: currently only the type and description are supported not the positioning.                                     |
-| `inject-to-page[...]` | Injects the content inside `[...]` to the latest page.                                                                                                                |
-| `wrap-image[...]`     | Wraps the image paths in a markdown cell around a formatted string inside `[...]`. An explanation can be found in the [test](tests/notebooks/wrap_images.ipynb) file. |
-| `class[...]`          | Sets the class of the latest page to the content inside `[...]`                                                                                                       |
+```
+<!--! new; start-add; -->
+# New Page
+<!--! stop-add; -->
+Ignore this Text.
+<!--! 
+    inject[
+        But add this.
+    ]; 
+-->
+```
 
-All tags besides `class[...]` are executed in order. `class[...]` can be defined out of order and will run before initializing a new page.
+#### **Supported Commands:**
+| Command       | Use                                                                                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new`         | Initialize a new page.                                                                                                                                                |
+| `start-add`   | Start adding line by line to the latest page.                                                                                                                         |
+| `stop-add`    | Stop adding lines to the latest page.                                                                                                                                 |
+| `inject[...]` | Injects the content inside `[...]` to the latest page.                                                                                                                |
+| `image[...]`  | Wraps the image paths in a markdown cell around a formatted string inside `[...]`. An explanation can be found in the [test](tests/notebooks/wrap_images.ipynb) file. |
+| `class[...]`  | Sets the class of the latest page to the content inside `[...]`                                                                                                       |
 
+- All tags besides `class[...]` are executed in order. `class[...]` can be defined out of order and will run before initializing a new page.
+- To use `[` or `]` inside a content block `[...]` the char has to be escaped with `\`.
 
 ### **Command line**
-Are the cells correctly tagged, the program can be run. The supported arguments can be seen by running `presentation -h`
+Are the commands correctly added, the program can be run. The supported arguments can be seen by running `presentation -h`
 
 ```
 Create a presentation from passed `.ipynb` notebooks.
@@ -53,6 +64,7 @@ OPTIONS:
     -o,  --output <output>  The path where the presentation will be saved.
     -f,  --force            Force override the file if it already exists.
     -v,  --verbose          Enable verbose output.
+    -d,  --debug            Enables debug output, which only has an effect in debug builds.
 
 ARGS:
     <input>...  The source paths of the notebooks or folders.
